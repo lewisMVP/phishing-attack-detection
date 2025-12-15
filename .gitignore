@@ -1,0 +1,11 @@
+# Ignore raw data
+data/raw/
+
+# Virtual environment
+venv/
+
+# WebDriver
+*.exe
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
