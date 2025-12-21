@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M12 2L3 7V12C3 16.97 6.84 21.56 12 23C17.16 21.56 21 16.97 21 12V7L12 2Z" fill="url(#gradient)"/>
+            <path d="M10 15.5L7.5 13L6.09 14.41L10 18.32L18 10.32L16.59 8.91L10 15.5Z" fill="white"/>
+            <defs>
+              <linearGradient id="gradient" x1="3" y1="2" x2="21" y2="23" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#6366f1"/>
+                <stop offset="1" stop-color="#8b5cf6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="logo-text">Phishing Guard</span>
+      </div>
+      <div class="badge">AI Powered</div>
+    </div>
+
+    <!-- URL Display -->
+    <div class="url-container">
+      <div class="url-label">Current URL</div>
+      <div id="current-url" class="url-text">Loading URL...</div>
+    </div>
+
+    <!-- Status Card -->
+    <div id="status-card" class="status-card neutral">
+      <div class="status-content">
+        <div id="status-icon" class="status-icon">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+          </svg>
+        </div>
+        <h3 id="verdict" class="verdict-text">Ready to Scan</h3>
+        <p id="verdict-desc" class="verdict-desc">Click the button below to analyze this website</p>
+      </div>
+      <div class="status-glow"></div>
+    </div>
+
+    <!-- Scan Button -->
+    <button id="scan-btn" class="scan-btn">
+      <span class="btn-text">Scan Website</span>
+      <span class="btn-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <path d="m21 21-4.35-4.35"/>
+        </svg>
+      </span>
+    </button>
+
+    <!-- Result Details -->
+    <div id="result" class="result-section hidden">
+      <div class="result-header">Analysis Details</div>
+      <div class="details-grid">
+        <div class="detail-card">
+          <div class="detail-label">Confidence</div>
+          <div id="confidence" class="detail-value">0%</div>
+          <div class="detail-bar">
+            <div id="confidence-fill" class="detail-bar-fill"></div>
+          </div>
+        </div>
+        <div class="detail-card">
+          <div class="detail-label">Risk Score</div>
+          <div id="score" class="detail-value">0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div id="error" class="error-container hidden">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+      </svg>
+      <span id="error-text"></span>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span>Protected by AI • v1.0</span>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
