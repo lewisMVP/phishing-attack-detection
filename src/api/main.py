@@ -15,8 +15,19 @@ import ipaddress
 from fastapi.middleware.cors import CORSMiddleware
 
 # --- CONFIGURATION ---
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) # Points to 'src'
-MODEL_DIR = os.path.join(BASE_DIR, 'models', 'saved_models')
+# Get the project root directory (works both locally and on Render)
+CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))  # src/api
+SRC_DIR = os.path.dirname(CURRENT_FILE_DIR)  # src
+PROJECT_ROOT = os.path.dirname(SRC_DIR)  # project root
+MODEL_DIR = os.path.join(SRC_DIR, 'models', 'saved_models')
+
+# Debug: Print paths on startup
+print(f"[DEBUG] Current file: {os.path.abspath(__file__)}")
+print(f"[DEBUG] SRC_DIR: {SRC_DIR}")
+print(f"[DEBUG] MODEL_DIR: {MODEL_DIR}")
+print(f"[DEBUG] MODEL_DIR exists: {os.path.exists(MODEL_DIR)}")
+if os.path.exists(MODEL_DIR):
+    print(f"[DEBUG] MODEL_DIR contents: {os.listdir(MODEL_DIR)}")
 
 # 1. WHITELIST CONFIGURATION (Strictly trusted domains only)
 # These are root domains - subdomains will also be trusted (e.g., gemini.google.com)
