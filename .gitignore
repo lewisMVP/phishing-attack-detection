@@ -14,12 +14,3 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
-
-# Model files (heavy)
-*.pkl
-*.pt
-*.pth
-*.h5
-*.onnx
-*.safetensors
-src/models/saved_models/

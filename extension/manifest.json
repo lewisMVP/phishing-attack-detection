@@ -8,6 +8,7 @@
     "scripting"
   ],
   "host_permissions": [
+    "https://phishing-attack-detection-api.onrender.com/*",
     "http://127.0.0.1:8000/*" 
   ],
   "action": {

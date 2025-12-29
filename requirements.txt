@@ -1,20 +1,17 @@
 pandas
 requests
 beautifulsoup4
-selenium
-webdriver-manager
-python-whois
 tldextract
 scikit-learn
 numpy
 fastapi
-uvicorn
+uvicorn[standard]
 pydantic
 python-multipart
-torch
-torchvision
+torch --index-url https://download.pytorch.org/whl/cpu
+torchvision --index-url https://download.pytorch.org/whl/cpu
 transformers
 ultralytics
 joblib
 Pillow
-seaborn
+gunicorn
