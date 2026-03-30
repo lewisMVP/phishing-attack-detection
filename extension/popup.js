@@ -58,8 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 verdictElem.textContent = "Processing...";
                 verdictDesc.textContent = "AI is analyzing the website";
                 
-                const API_URL = 'https://phishing-attack-detection-api.onrender.com/predict'; // Change to localhost for dev
-                const response = await fetch(API_URL, {
+                const response = await fetch('http://127.0.0.1:8000/predict', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
