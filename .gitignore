@@ -1,6 +1,9 @@
 # Ignore raw data
 data/raw/
 
+#ignore dataset
+data/processed/
+
 # Virtual environment
 venv/
 
