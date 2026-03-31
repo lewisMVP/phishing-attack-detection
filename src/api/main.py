@@ -2,10 +2,12 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import joblib
 import os
+import sys
 import base64
 import io
 import torch
 import numpy as np
+import pandas as pd
 from PIL import Image
 from transformers import BertTokenizer, BertForSequenceClassification
 from ultralytics import YOLO
@@ -13,6 +15,13 @@ from urllib.parse import urlparse
 import re
 import ipaddress
 from fastapi.middleware.cors import CORSMiddleware
+
+# --- Import advanced feature extraction module ---
+CURRENT_FILE_DIR_INIT = os.path.dirname(os.path.abspath(__file__))
+SRC_DIR_INIT = os.path.dirname(CURRENT_FILE_DIR_INIT)
+if SRC_DIR_INIT not in sys.path:
+    sys.path.insert(0, SRC_DIR_INIT)
+from features.extract_url_features import extract_features
 
 # --- CONFIGURATION ---
 # Get the project root directory (works both locally and on Render)
@@ -99,87 +108,47 @@ app.add_middleware(
 
 # --- GLOBAL MODEL STORAGE ---
 models = {
-    "rf": None,
+    "xgb": None,
+    "xgb_threshold": 0.5,  # default, will be overridden by saved threshold
+    "xgb_feature_names": None,
     "yolo": None,
     "bert": None,
     "bert_tokenizer": None
 }
 
-# --- HELPER: EXTRACT URL FEATURES (21 FEATURES) ---
-def extract_url_features(url):
+# --- HELPER: EXTRACT URL FEATURES (69 FEATURES via XGBoost module) ---
+def extract_url_features_for_api(url: str) -> pd.DataFrame:
     """
-    Extracts exactly 21 features to match the trained Random Forest model.
+    Extracts 69 advanced features for a single URL using the shared extraction module.
+    Returns a DataFrame row ready for model prediction.
     """
     try:
-        url = str(url).strip()
-        parsed = urlparse(url)
-        domain = parsed.netloc
-        path = parsed.path
-        
-        # Helper to check IP
-        def is_ip_address(d):
-            try:
-                ipaddress.ip_address(d)
-                return 1
-            except:
-                return 0
-
-        # Helper to count special chars
-        def count_special_chars(u):
-            return len(re.findall(r'[!@#$%^&*(),?":{}|<>]', u))
-
-        # Fix: Ignore '://' to avoid miscounting slashes in protocol
-        url_for_counting = url.replace("://", "")
-
-        features = [
-            # 1. Length Features (3)
-            len(url),
-            len(domain),
-            len(path),
-            
-            # 2. Character Counts (9)
-            url.count('@'),
-            url.count('-'),
-            url.count('.'),
-            url_for_counting.count('/'), # Uses the fixed variable
-            url.count('?'),       
-            url.count('='),       
-            url.count('http'),
-            url.count('www'),     
-            count_special_chars(url),
-            
-            # 3. Binary Features (2)
-            1 if parsed.scheme == 'https' else 0,
-            is_ip_address(domain),
-            
-            # 4. Phishing Keywords (7)
-            1 if 'login' in url.lower() else 0,
-            1 if 'secure' in url.lower() else 0,
-            1 if 'account' in url.lower() else 0,
-            1 if 'verify' in url.lower() else 0,
-            1 if 'signin' in url.lower() else 0,
-            1 if 'bank' in url.lower() else 0,
-            1 if 'confirm' in url.lower() else 0
-        ]
-        
-        return features
-        
+        df_input = pd.DataFrame({'url': [str(url).strip()], 'label': [0]})
+        df_features = extract_features(df_input)
+        # Drop 'url' and 'label' columns, keep only feature columns
+        feature_cols = [c for c in df_features.columns if c not in ('url', 'label')]
+        return df_features[feature_cols]
     except Exception as e:
         print(f"Error extracting URL features: {e}")
-        return [0] * 21
+        return None
 
 # --- STARTUP EVENT: LOAD MODELS ---
 @app.on_event("startup")
 async def load_models():
     print("\n>>> [SYSTEM] Starting Server and loading Models...")
     
-    # 1. Load Random Forest (URL)
-    rf_path = os.path.join(MODEL_DIR, 'url_random_forest.pkl')
-    if os.path.exists(rf_path):
-        models["rf"] = joblib.load(rf_path)
-        print(f"[OK] URL Model Loaded: {rf_path}")
+    # 1. Load XGBoost (URL) - includes model + optimal threshold
+    xgb_path = os.path.join(MODEL_DIR, 'url_xgboost.pkl')
+    if os.path.exists(xgb_path):
+        model_data = joblib.load(xgb_path)
+        models["xgb"] = model_data['model']
+        models["xgb_threshold"] = model_data.get('optimal_threshold', 0.5)
+        models["xgb_feature_names"] = model_data.get('feature_names', None)
+        print(f"[OK] XGBoost URL Model Loaded: {xgb_path}")
+        print(f"     Optimal Threshold: {models['xgb_threshold']:.4f}")
+        print(f"     Target FPR: < {model_data.get('target_fpr', 'N/A')}")
     else:
-        print(f"[ERROR] URL Model NOT FOUND at: {rf_path}")
+        print(f"[ERROR] XGBoost URL Model NOT FOUND at: {xgb_path}")
 
     # 2. Load YOLOv8 (Image)
     yolo_path = os.path.join(MODEL_DIR, 'yolo_logo_detector.pt')
@@ -217,7 +186,7 @@ async def predict(request: ScanRequest):
     screenshot_len = len(request.screenshot_base64) if request.screenshot_base64 else 0
     print(f"   [DEBUG] HTML length: {html_len} chars")
     print(f"   [DEBUG] Screenshot length: {screenshot_len} chars")
-    print(f"   [DEBUG] Models loaded - RF: {models['rf'] is not None}, BERT: {models['bert'] is not None}, YOLO: {models['yolo'] is not None}")
+    print(f"   [DEBUG] Models loaded - XGB: {models['xgb'] is not None}, BERT: {models['bert'] is not None}, YOLO: {models['yolo'] is not None}")
     
     # --- STEP 0: WHITELIST CHECK (Bypass AI) ---
     try:
@@ -259,22 +228,31 @@ async def predict(request: ScanRequest):
     
     total_score = 0 
 
-    # === 1. URL ANALYSIS (Weight: 1) ===
-    if models["rf"]:
+    # === 1. URL ANALYSIS (Weight: 1) - XGBoost with Custom Threshold ===
+    if models["xgb"]:
         try:
-            feats = extract_url_features(request.url)
-            input_feats = [feats] 
-            prob = models["rf"].predict_proba(input_feats)[0][1]
-            
-            response["details"]["url_score"] = float(prob)
-            response["details"]["modules_run"].append("URL")
-            
-            # Add point if suspicious (> 0.6)
-            if prob > 0.6:
-                print(f"   [WARN] [URL] Suspicious URL Structure (Score: {prob:.4f}) -> +1 Point")
-                total_score += 1
+            features_df = extract_url_features_for_api(request.url)
+            if features_df is not None:
+                # Ensure feature columns match training order
+                if models["xgb_feature_names"]:
+                    features_df = features_df.reindex(columns=models["xgb_feature_names"], fill_value=0)
+                
+                prob = models["xgb"].predict_proba(features_df)[0][1]
+                threshold = models["xgb_threshold"]
+                is_phishing = prob >= threshold
+                
+                response["details"]["url_score"] = float(prob)
+                response["details"]["url_threshold"] = float(threshold)
+                response["details"]["modules_run"].append("URL")
+                
+                # Use the trained optimal threshold instead of hardcoded 0.6
+                if is_phishing:
+                    print(f"   [WARN] [URL-XGB] Phishing detected (Score: {prob:.4f} >= threshold {threshold:.4f}) -> +1 Point")
+                    total_score += 1
+                else:
+                    print(f"   [INFO] [URL-XGB] Safe (Score: {prob:.4f} < threshold {threshold:.4f})")
         except Exception as e:
-            print(f"   [ERROR] [URL] Error: {e}")
+            print(f"   [ERROR] [URL-XGB] Error: {e}")
 
     # === 2. TEXT ANALYSIS (Weight: 1) ===
     if models["bert"] and len(request.html_content) > 50:

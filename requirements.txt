@@ -15,3 +15,7 @@ ultralytics
 joblib
 Pillow
 gunicorn
+cdx_toolkit
+xgboost
+matplotlib
+seaborn
