@@ -1,4 +1,4 @@
-/* ===== MODERN PHISHING GUARD EXTENSION ===== */
+/* ===== MODERN PHISHING GUARD EXTENSION - 2.5D STYLE ===== */
 
 * {
   margin: 0;
@@ -8,11 +8,27 @@
 
 body {
   width: 360px;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 100%);
-  color: #ffffff;
+  font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #DADADA;
+  color: #191A23;
   padding: 0;
   min-height: 480px;
+
+}
+
+html, body {
+  -ms-overflow-style: none !important;  
+  scrollbar-width: none !important;  
+}
+
+/* Ẩn scrollbar trên Chrome, Safari, Edge (nhân Chromium) */
+::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent;
 }
 
 .container {
@@ -28,7 +44,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 2px solid #191A23;
 }
 
 .logo {
@@ -40,59 +56,72 @@ body {
 .logo-icon {
   width: 36px;
   height: 36px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border-radius: 10px;
+  background-color: #B9FF66;
+  border: 2px solid #191A23;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+  box-shadow: 3px 3px 0px 0px #191A23;
+}
+
+.logo-icon svg path[fill="url(#gradient)"] {
+  fill: #191A23;
+}
+.logo-icon svg path[fill="white"] {
+  fill: #B9FF66;
 }
 
 .logo-text {
   font-size: 16px;
   font-weight: 700;
-  background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #191A23;
 }
 
 .badge {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
   padding: 4px 10px;
-  background: rgba(99, 102, 241, 0.15);
-  border: 1px solid rgba(99, 102, 241, 0.3);
+  background-color: #FFFFFF;
+  border: 2px solid #191A23;
   border-radius: 20px;
-  color: #a5b4fc;
+  color: #191A23;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  box-shadow: 2px 2px 0px 0px #B9FF66;
 }
 
 /* ===== URL CONTAINER ===== */
 .url-container {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: #FFFFFF;
+  border: 2px solid #191A23;
+  box-shadow: 4px 4px 0px 0px #191A23;
   border-radius: 12px;
   padding: 12px 14px;
 }
 
 .url-label {
   font-size: 11px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.4);
+  font-weight: 700;
+  color: #191A23;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  background-color: #B9FF66;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid #191A23;
 }
 
 .url-text {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #191A23;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+  font-family: inherit;
+  font-weight: 500;
 }
 
 /* ===== STATUS CARD ===== */
@@ -102,12 +131,18 @@ body {
   border-radius: 16px;
   text-align: center;
   overflow: hidden;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s ease;
+  border: 2px solid #191A23;
+  box-shadow: 6px 6px 0px 0px #191A23;
 }
 
 .status-content {
   position: relative;
   z-index: 1;
+}
+
+.status-glow {
+  display: none;
 }
 
 .status-icon {
@@ -118,17 +153,14 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  border: 2px solid #191A23;
   transition: all 0.3s ease;
-}
-
-.status-icon svg {
-  opacity: 0.9;
+  background-color: #FFFFFF;
+  box-shadow: 4px 4px 0px 0px #191A23;
 }
 
 .verdict-text {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   margin-bottom: 6px;
   text-transform: uppercase;
@@ -136,73 +168,55 @@ body {
 }
 
 .verdict-desc {
-  font-size: 12px;
-  opacity: 0.7;
-  font-weight: 400;
-}
-
-.status-glow {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 200%;
-  height: 200%;
-  border-radius: 50%;
-  opacity: 0.15;
-  pointer-events: none;
-  transition: all 0.4s ease;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.9;
 }
 
 /* Status States */
 .neutral {
-  background: linear-gradient(135deg, rgba(100, 116, 139, 0.2) 0%, rgba(71, 85, 105, 0.2) 100%);
-  border: 1px solid rgba(100, 116, 139, 0.2);
+  background-color: #FFFFFF;
+  color: #191A23;
 }
 
-.neutral .status-icon { color: #94a3b8; }
-.neutral .status-glow { background: radial-gradient(circle, #64748b 0%, transparent 70%); }
+.neutral .status-icon { 
+  color: #191A23; 
+  background-color: #B9FF66; 
+}
 
 .safe {
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.15) 0%, rgba(22, 163, 74, 0.15) 100%);
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  box-shadow: 0 0 40px rgba(34, 197, 94, 0.15);
+  background-color: #B9FF66;
+  color: #191A23;
 }
 
 .safe .status-icon { 
-  color: #22c55e; 
-  background: rgba(34, 197, 94, 0.2);
+  color: #191A23; 
+  background-color: #FFFFFF;
 }
-.safe .status-glow { background: radial-gradient(circle, #22c55e 0%, transparent 70%); }
-.safe .verdict-text { color: #4ade80; }
 
 .phishing {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  box-shadow: 0 0 40px rgba(239, 68, 68, 0.2);
-  animation: dangerPulse 2s ease-in-out infinite;
+  background-color: #FF4B4B;
+  color: #FFFFFF;
+  box-shadow: 6px 6px 0px 0px #191A23;
 }
 
 .phishing .status-icon { 
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.2);
+  color: #FF4B4B;
+  background-color: #191A23;
+  border-color: #FFFFFF;
+  box-shadow: 4px 4px 0px 0px #191A23;
 }
-.phishing .status-glow { background: radial-gradient(circle, #ef4444 0%, transparent 70%); }
-.phishing .verdict-text { color: #f87171; }
 
 .scanning {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  background-color: #FFFFFF;
+  color: #191A23;
 }
 
 .scanning .status-icon { 
-  color: #818cf8;
+  color: #191A23;
+  background-color: #B9FF66;
   animation: spin 1.5s linear infinite;
-}
-
-@keyframes dangerPulse {
-  0%, 100% { box-shadow: 0 0 40px rgba(239, 68, 68, 0.2); }
-  50% { box-shadow: 0 0 60px rgba(239, 68, 68, 0.35); }
+  box-shadow: none;
 }
 
 @keyframes spin {
@@ -218,48 +232,34 @@ body {
   gap: 10px;
   width: 100%;
   padding: 14px 24px;
-  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-size: 14px;
-  font-weight: 600;
+  background-color: #B9FF66;
+  border: 2px solid #191A23;
+  border-radius: 14px;
+  color: #191A23;
+  font-size: 16px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.scan-btn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s ease;
+  transition: all 0.1s ease;
+  box-shadow: 4px 4px 0px 0px #191A23;
 }
 
 .scan-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 30px rgba(99, 102, 241, 0.4);
-}
-
-.scan-btn:hover::before {
-  left: 100%;
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0px 0px #191A23;
+  background-color: #a9ee56;
 }
 
 .scan-btn:active {
-  transform: translateY(0);
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px 0px #191A23;
 }
 
 .scan-btn:disabled {
-  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
-  box-shadow: none;
+  background-color: #A0A0A0;
+  box-shadow: 4px 4px 0px 0px #191A23;
   cursor: not-allowed;
   transform: none;
+  color: #191A23;
 }
 
 .btn-icon {
@@ -284,12 +284,18 @@ body {
 }
 
 .result-header {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  font-weight: 700;
+  color: #191A23;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin-bottom: 12px;
+  display: inline-block;
+  background-color: #B9FF66;
+  padding: 4px 8px;
+  border: 2px solid #191A23;
+  border-radius: 8px;
+  box-shadow: 3px 3px 0px 0px #191A23;
 }
 
 .details-grid {
@@ -299,15 +305,17 @@ body {
 }
 
 .detail-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background-color: #FFFFFF;
+  border: 2px solid #191A23;
   border-radius: 12px;
   padding: 14px;
+  box-shadow: 4px 4px 0px 0px #191A23;
 }
 
 .detail-label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  font-weight: 700;
+  color: #191A23;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 6px;
@@ -316,24 +324,22 @@ body {
 .detail-value {
   font-size: 24px;
   font-weight: 700;
-  background: linear-gradient(135deg, #ffffff 0%, #a5b4fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: #191A23;
 }
 
 .detail-bar {
   margin-top: 8px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
+  height: 8px;
+  background-color: #F3F3F3;
+  border: 1px solid #191A23;
+  border-radius: 4px;
   overflow: hidden;
 }
 
 .detail-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6);
-  border-radius: 2px;
+  background-color: #B9FF66;
+  border-right: 1px solid #191A23;
   transition: width 0.5s ease;
   width: 0%;
 }
@@ -344,11 +350,13 @@ body {
   align-items: center;
   gap: 10px;
   padding: 12px 14px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.2);
+  background-color: #191A23;
+  border: 2px solid #191A23;
+  box-shadow: 4px 4px 0px 0px #FF4B4B;
   border-radius: 10px;
-  color: #f87171;
-  font-size: 12px;
+  color: #FF4B4B;
+  font-size: 13px;
+  font-weight: 600;
   animation: shake 0.5s ease;
 }
 
@@ -362,9 +370,10 @@ body {
 .footer {
   text-align: center;
   padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.3);
+  border-top: 2px solid #191A23;
+  font-size: 12px;
+  font-weight: 600;
+  color: #191A23;
 }
 
 /* ===== UTILITIES ===== */
