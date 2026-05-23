@@ -43,6 +43,7 @@ if os.path.exists(MODEL_DIR):
 WHITELIST_ROOT_DOMAINS = {
     # Global Tech Giants
     "google.com",
+    "google",  # .google gTLD is owned by Google
     "microsoft.com",
     "facebook.com",
     "youtube.com",
@@ -65,6 +66,11 @@ WHITELIST_ROOT_DOMAINS = {
     "spotify.com",
     "zoom.us",
     "dropbox.com",
+    "pepsi.com",
+    "starbucks.com"
+    "coca-colacompany.com"
+    "adidas.com"
+    "nike.com"
     
     # Vietnamese trusted sites
     "vnexpress.net",
@@ -77,7 +83,7 @@ WHITELIST_ROOT_DOMAINS = {
     "lazada.vn",
     "sendo.vn",
     "momo.vn",
-    "vietcombank.com.vn",
+    #"vietcombank.com.vn",
     "techcombank.com.vn",
     "vietinbank.vn",
     "bidv.com.vn",
@@ -89,18 +95,45 @@ WHITELIST_ROOT_DOMAINS = {
 # 2. BRAND-DOMAIN MAPPING (for logo cross-referencing)
 # Maps YOLO-detected brand name → legitimate domains for that brand
 BRAND_DOMAIN_MAP = {
-    "google":    ["google.com", "google.co", "googleapis.com", "gstatic.com", "youtube.com", "gmail.com", "antigravity.google"],
+    # Tech
     "microsoft": ["microsoft.com", "live.com", "outlook.com", "office.com", "azure.com", "bing.com", "msn.com"],
-    "facebook":  ["facebook.com", "fb.com", "meta.com", "messenger.com"],
+    "google":    ["google.com", "google.co", "googleapis.com", "gstatic.com", "youtube.com", "gmail.com", "antigravity.google"],
     "apple":     ["apple.com", "icloud.com", "itunes.com"],
+    "adobe":     ["adobe.com", "adobelogin.com"],
+    "facebook":  ["facebook.com", "fb.com", "meta.com", "messenger.com"],
+    "linkedin":  ["linkedin.com"],
     "amazon":    ["amazon.com", "amazon.co", "aws.amazon.com", "amazonservices.com"],
     "netflix":   ["netflix.com"],
-    "adobe":     ["adobe.com", "adobelogin.com"],
-    "linkedin":  ["linkedin.com"],
-    "paypal":    ["paypal.com"],
+    "tiktok":    ["tiktok.com"],
     "instagram": ["instagram.com"],
-    "bank of america": ["bankofamerica.com", "bofa.com"],
+
+    # E-commerce / Shipping
+    "ebay":      ["ebay.com"],
+    "shopee":    ["shopee.com", "shopee.vn", "shopee.co.id", "shopee.ph", "shopee.com.my", "shopee.sg", "shopee.co.th", "shopee.tw"],
+    "lazada":    ["lazada.com", "lazada.vn", "lazada.co.id", "lazada.com.ph", "lazada.com.my", "lazada.sg", "lazada.co.th"],
+    "tiki":      ["tiki.vn"],
+    "dhl":       ["dhl.com"],
+    "fedex":     ["fedex.com"],
+    "ups":       ["ups.com"],
+
+    # International Finance / Payments
+    "paypal":    ["paypal.com"],
+    "stripe":    ["stripe.com"],
+    "hsbc":      ["hsbc.com", "hsbc.co.uk", "hsbc.com.vn"],
+    "citibank":  ["citibank.com", "citi.com"],
+    "bankofamerica": ["bankofamerica.com", "bofa.com"],
+    "chase":     ["chase.com"],
+    "visa":      ["visa.com"],
+    "mastercard":["mastercard.com", "mastercard.us"],
+
+    # Vietnamese Finance / Payments
+    "momo":      ["momo.vn"],
     "vnpay":     ["vnpay.vn"],
+    "zalopay":   ["zalopay.vn"],
+    "vietcombank":["vietcombank.com.vn", "vietcombank.com"],
+    "techcombank":["techcombank.com.vn", "techcombank.com"],
+    "mbbank":    ["mbbank.com.vn", "mb.com.vn"],
+    "bidv":      ["bidv.com.vn"],
 }
 
 def is_whitelisted(domain: str) -> bool:
@@ -266,6 +299,14 @@ async def predict(request: ScanRequest):
     }
     
     reasons = []  # Collect reasons throughout analysis
+    
+    # === 0. PROTOCOL CHECK (Informational only, does NOT affect scoring) ===
+    parsed_url = urlparse(request.url)
+    if parsed_url.scheme != "https":
+        print(f"   [WARN] [PROTOCOL] Site does not use HTTPS ({parsed_url.scheme}://)")
+        reasons.append({"message": "This site does not use HTTPS encryption. Data sent to this site may not be secure.", "type": "warning"})
+    else:
+        reasons.append({"message": "Site uses HTTPS encryption", "type": "safe"})
     
     # VOTING LOGIC WITH CRITICAL OVERRIDE
     # Standard Rule: Need at least 2 points to flag as PHISHING.
