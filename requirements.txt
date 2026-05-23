@@ -19,3 +19,4 @@ cdx_toolkit
 xgboost
 matplotlib
 seaborn
+slowapi

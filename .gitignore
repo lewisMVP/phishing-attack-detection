@@ -1,8 +1,27 @@
 # Ignore raw data
 data/raw/
+data/raw_from_datasetv1/
 
 #ignore dataset
 data/processed/
+data/DatasetV1/
+
+#ignore model weights
+# ignore model weights
+src/models/saved_models/yolo26n_logo_detector.pt
+src/models/saved_models/xgb_url_classifier.pkl
+src/models/saved_models/bert_phishing/config.json
+src/models/saved_models/bert_phishing/pytorch_model.bin
+src/models/saved_models/bert_phishing/tokenizer.json
+src/models/saved_models/bert_phishing/tokenizer_config.json
+src/models/saved_models/url_xgboost.pkl
+src/models/saved_models/url_random_forest.pkl
+src/models/saved_models/yolo_logo_detector.pt
+src/models/saved_models/xlmr_phishing/config.json
+src/models/saved_models/xlmr_phishing/model.safetensors
+src/models/saved_models/xlmr_phishing/special_tokens_map.json
+src/models/saved_models/xlmr_phishing/tokenizer_config.json
+src/models/saved_models/xlmr_phishing/vocab.txt
 
 # Virtual environment
 venv/

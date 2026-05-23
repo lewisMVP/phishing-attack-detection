@@ -16,12 +16,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const statusIcon = document.getElementById('status-icon');
             const verdictElem = document.getElementById('verdict');
             const verdictDesc = document.getElementById('verdict-desc');
+            const reasonsSection = document.getElementById('reasons-section');
+            const reasonsList = document.getElementById('reasons-list');
             
             // UI Loading State
             btnText.textContent = "Analyzing...";
             btn.disabled = true;
             resultDiv.classList.add('hidden');
             errorDiv.classList.add('hidden');
+            reasonsSection.classList.add('hidden');
+            reasonsList.innerHTML = '';
             
             statusCard.className = "status-card scanning";
             statusIcon.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -97,7 +101,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('confidence-fill').style.width = confidencePercent + "%";
                 document.getElementById('score').textContent = data.details.url_score.toFixed(2);
                 
+                // 5. Render Reasons (always show)
+                const reasons = data.details.reasons || [];
+                const reasonsHeader = reasonsSection.querySelector('.reasons-header');
+                if (reasons.length > 0) {
+                    // Dynamic header based on verdict
+                    if (data.final_verdict === 'PHISHING') {
+                        reasonsHeader.textContent = 'Why is this suspicious?';
+                        reasonsHeader.className = 'reasons-header danger';
+                    } else {
+                        reasonsHeader.textContent = 'Analysis Summary';
+                        reasonsHeader.className = 'reasons-header safe';
+                    }
+                    
+                    reasonsList.innerHTML = '';
+                    reasons.forEach(reason => {
+                        const li = document.createElement('li');
+                        li.className = reason.type === 'danger' ? 'reason-item danger' : 'reason-item safe';
+                        li.textContent = reason.message;
+                        reasonsList.appendChild(li);
+                    });
+                    reasonsSection.classList.remove('hidden');
+                } else {
+                    reasonsSection.classList.add('hidden');
+                }
+                
                 console.log("Modules run:", data.details.modules_run);
+                console.log("Logo detected:", data.details.logo_detected);
+                console.log("Logo mismatch:", data.details.logo_mismatch);
+                console.log("Reasons:", reasons);
 
             } catch (err) {
                 console.error(err);

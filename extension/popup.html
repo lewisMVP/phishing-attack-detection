@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
 </head>
+
 <body>
   <div class="container">
     <!-- Header -->
@@ -14,12 +17,12 @@
       <div class="logo">
         <div class="logo-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M12 2L3 7V12C3 16.97 6.84 21.56 12 23C17.16 21.56 21 16.97 21 12V7L12 2Z" fill="url(#gradient)"/>
-            <path d="M10 15.5L7.5 13L6.09 14.41L10 18.32L18 10.32L16.59 8.91L10 15.5Z" fill="white"/>
+            <path d="M12 2L3 7V12C3 16.97 6.84 21.56 12 23C17.16 21.56 21 16.97 21 12V7L12 2Z" fill="url(#gradient)" />
+            <path d="M10 15.5L7.5 13L6.09 14.41L10 18.32L18 10.32L16.59 8.91L10 15.5Z" fill="white" />
             <defs>
               <linearGradient id="gradient" x1="3" y1="2" x2="21" y2="23" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#6366f1"/>
-                <stop offset="1" stop-color="#8b5cf6"/>
+                <stop stop-color="#6366f1" />
+                <stop offset="1" stop-color="#8b5cf6" />
               </linearGradient>
             </defs>
           </svg>
@@ -40,7 +43,8 @@
       <div class="status-content">
         <div id="status-icon" class="status-icon">
           <svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+            <path
+              d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
           </svg>
         </div>
         <h3 id="verdict" class="verdict-text">Ready to Scan</h3>
@@ -54,8 +58,8 @@
       <span class="btn-text">Scan Website</span>
       <span class="btn-icon">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="11" cy="11" r="8"/>
-          <path d="m21 21-4.35-4.35"/>
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
         </svg>
       </span>
     </button>
@@ -78,19 +82,28 @@
       </div>
     </div>
 
+    <!-- Reasons Section -->
+    <div id="reasons-section" class="reasons-section hidden">
+      <div class="reasons-header">Why is this suspicious?</div>
+      <ul id="reasons-list" class="reasons-list"></ul>
+    </div>
+
+
     <!-- Error Message -->
     <div id="error" class="error-container hidden">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
       </svg>
       <span id="error-text"></span>
     </div>
 
     <!-- Footer -->
     <div class="footer">
-      <span>Protected by XGBoost, PhoBERT and YOLO11 • v2.0</span>
+      <span>Protected with AI</span><br>
+      <span style="font-size: 10px; color: #727475;">AI can make mistakes, please use with caution.</span>
     </div>
   </div>
   <script src="popup.js"></script>
 </body>
+
 </html>

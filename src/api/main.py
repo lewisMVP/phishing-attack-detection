@@ -9,7 +9,7 @@ import torch
 import numpy as np
 import pandas as pd
 from PIL import Image
-from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from ultralytics import YOLO
 from urllib.parse import urlparse
 import re
@@ -51,6 +51,8 @@ WHITELIST_ROOT_DOMAINS = {
     "stackoverflow.com",
     "chatgpt.com",
     "openai.com",
+    "claude.ai",
+    "perplexity.ai",
     "apple.com",
     "netflix.com",
     "linkedin.com",
@@ -84,6 +86,23 @@ WHITELIST_ROOT_DOMAINS = {
     "vingroup.net"
 }
 
+# 2. BRAND-DOMAIN MAPPING (for logo cross-referencing)
+# Maps YOLO-detected brand name → legitimate domains for that brand
+BRAND_DOMAIN_MAP = {
+    "google":    ["google.com", "google.co", "googleapis.com", "gstatic.com", "youtube.com", "gmail.com", "antigravity.google"],
+    "microsoft": ["microsoft.com", "live.com", "outlook.com", "office.com", "azure.com", "bing.com", "msn.com"],
+    "facebook":  ["facebook.com", "fb.com", "meta.com", "messenger.com"],
+    "apple":     ["apple.com", "icloud.com", "itunes.com"],
+    "amazon":    ["amazon.com", "amazon.co", "aws.amazon.com", "amazonservices.com"],
+    "netflix":   ["netflix.com"],
+    "adobe":     ["adobe.com", "adobelogin.com"],
+    "linkedin":  ["linkedin.com"],
+    "paypal":    ["paypal.com"],
+    "instagram": ["instagram.com"],
+    "bank of america": ["bankofamerica.com", "bofa.com"],
+    "vnpay":     ["vnpay.vn"],
+}
+
 def is_whitelisted(domain: str) -> bool:
     """Check if domain or its parent domain is in whitelist."""
     domain = domain.lower()
@@ -95,6 +114,26 @@ def is_whitelisted(domain: str) -> bool:
         if domain.endswith('.' + trusted):
             return True
     return False
+
+def check_brand_domain_match(brand: str, domain: str) -> str:
+    """Check if detected brand matches the website domain. Returns MATCH, MISMATCH, or UNKNOWN."""
+    brand_lower = brand.lower()
+    domain_lower = domain.lower()
+    if brand_lower not in BRAND_DOMAIN_MAP:
+        return "UNKNOWN"  # Unknown brand, can't cross-reference
+    for legit_domain in BRAND_DOMAIN_MAP[brand_lower]:
+        if domain_lower == legit_domain or domain_lower.endswith('.' + legit_domain):
+            return "MATCH"
+    return "MISMATCH"
+
+def check_brand_content_match(brand: str, html_content: str) -> bool:
+    """Check if detected brand name appears in page HTML content."""
+    if not html_content:
+        return False
+    content_lower = html_content.lower()
+    brand_lower = brand.lower()
+    # Check brand name in content (title, headings, body text)
+    return brand_lower in content_lower
 
 # --- INITIALIZE API ---
 app = FastAPI(title="Phishing Detection System API", version="1.0")
@@ -150,25 +189,25 @@ async def load_models():
     else:
         print(f"[ERROR] XGBoost URL Model NOT FOUND at: {xgb_path}")
 
-    # 2. Load YOLOv8 (Image)
-    yolo_path = os.path.join(MODEL_DIR, 'yolo_logo_detector.pt')
+    # 2. Load YOLO26 (Image — Logo Detection + Cross-Referencing)
+    yolo_path = os.path.join(MODEL_DIR, 'yolo26n_logo_detector.pt')
     if os.path.exists(yolo_path):
         models["yolo"] = YOLO(yolo_path)
-        print(f"[OK] [CV Model] Loaded: {yolo_path}")
+        print(f"[OK] [CV Model] YOLO26 Loaded: {yolo_path}")
     else:
         print(f"[ERROR] [CV Model] NOT FOUND at: {yolo_path}")
 
-    # 3. Load BERT (Text)
-    bert_path = os.path.join(MODEL_DIR, 'bert_phishing')
-    if os.path.exists(bert_path):
+    # 3. Load XLM-RoBERTa (Text)
+    xlmr_path = os.path.join(MODEL_DIR, 'xlmr_phishing')
+    if os.path.exists(xlmr_path):
         try:
-            models["bert_tokenizer"] = BertTokenizer.from_pretrained(bert_path)
-            models["bert"] = BertForSequenceClassification.from_pretrained(bert_path)
-            print(f"[OK] [NLP Model] Loaded: {bert_path}")
+            models["bert_tokenizer"] = AutoTokenizer.from_pretrained(xlmr_path)
+            models["bert"] = AutoModelForSequenceClassification.from_pretrained(xlmr_path)
+            print(f"[OK] [NLP Model] XLM-RoBERTa Loaded: {xlmr_path}")
         except Exception as e:
             print(f"[ERROR] [NLP Model] Error loading: {e}")
     else:
-        print(f"[ERROR] [NLP Model] NOT FOUND at: {bert_path}")
+        print(f"[ERROR] [NLP Model] NOT FOUND at: {xlmr_path}")
 
 # --- REQUEST BODY ---
 class ScanRequest(BaseModel):
@@ -186,7 +225,7 @@ async def predict(request: ScanRequest):
     screenshot_len = len(request.screenshot_base64) if request.screenshot_base64 else 0
     print(f"   [DEBUG] HTML length: {html_len} chars")
     print(f"   [DEBUG] Screenshot length: {screenshot_len} chars")
-    print(f"   [DEBUG] Models loaded - XGB: {models['xgb'] is not None}, BERT: {models['bert'] is not None}, YOLO: {models['yolo'] is not None}")
+    print(f"   [DEBUG] Models loaded - XGB: {models['xgb'] is not None}, XLM-RoBERTa: {models['bert'] is not None}, YOLO: {models['yolo'] is not None}")
     
     # --- STEP 0: WHITELIST CHECK (Bypass AI) ---
     try:
@@ -203,7 +242,9 @@ async def predict(request: ScanRequest):
                     "url_score": 0,
                     "text_score": 0,
                     "logo_detected": [],
-                    "modules_run": ["WHITELIST_PASSED"]
+                    "logo_mismatch": False,
+                    "modules_run": ["WHITELIST_PASSED"],
+                    "reasons": [{"message": f"{domain} is a verified trusted domain", "type": "safe"}]
                 }
             }
     except Exception as e:
@@ -218,9 +259,13 @@ async def predict(request: ScanRequest):
             "url_score": 0,
             "text_score": 0,
             "logo_detected": [],
-            "modules_run": []
+            "logo_mismatch": False,
+            "modules_run": [],
+            "reasons": []
         }
     }
+    
+    reasons = []  # Collect reasons throughout analysis
     
     # VOTING LOGIC WITH CRITICAL OVERRIDE
     # Standard Rule: Need at least 2 points to flag as PHISHING.
@@ -249,8 +294,10 @@ async def predict(request: ScanRequest):
                 if is_phishing:
                     print(f"   [WARN] [URL-XGB] Phishing detected (Score: {prob:.4f} >= threshold {threshold:.4f}) -> +1 Point")
                     total_score += 1
+                    reasons.append({"message": f"URL has suspicious structure (Risk score: {prob:.0%})", "type": "danger"})
                 else:
                     print(f"   [INFO] [URL-XGB] Safe (Score: {prob:.4f} < threshold {threshold:.4f})")
+                    reasons.append({"message": f"URL structure appears normal (Risk score: {prob:.0%})", "type": "safe"})
         except Exception as e:
             print(f"   [ERROR] [URL-XGB] Error: {e}")
 
@@ -271,12 +318,15 @@ async def predict(request: ScanRequest):
             
             # High threshold (0.85) to avoid false positives on news/blogs
             if phishing_prob > 0.85: 
-                print(f"   [WARN] [BERT] Phishing Content Detected (Score: {phishing_prob:.4f}) -> +1 Point")
+                print(f"   [WARN] [XLM-R] Phishing Content Detected (Score: {phishing_prob:.4f}) -> +1 Point")
                 total_score += 1
+                reasons.append({"message": f"Page content contains phishing patterns (Score: {phishing_prob:.0%})", "type": "danger"})
+            else:
+                reasons.append({"message": f"Page content appears legitimate (Score: {phishing_prob:.0%})", "type": "safe"})
         except Exception as e:
-            print(f"   [ERROR] [BERT] Error: {e}")
+            print(f"   [ERROR] [XLM-R] Error: {e}")
 
-    # === 3. IMAGE ANALYSIS (Weight: 1) ===
+    # === 3. IMAGE ANALYSIS + LOGO CROSS-REFERENCING ===
     if models["yolo"] and len(request.screenshot_base64) > 100:
         try:
             img_str = request.screenshot_base64
@@ -285,7 +335,24 @@ async def predict(request: ScanRequest):
             image_data = base64.b64decode(img_str)
             image = Image.open(io.BytesIO(image_data))
             
-            results = models["yolo"](image, verbose=False)
+            # --- PRE-RESIZE TO MATCH TRAINING DATA ---
+            # Training images trong Roboflow dataset đều có width=640 (ví dụ 640x296).
+            # Resize screenshot về width=640 giữ nguyên tỷ lệ để khớp với phân phối training.
+            width, height = image.size
+            if width != 640:
+                new_height = int(height * (640 / width))
+                image = image.resize((640, new_height), Image.LANCZOS)
+                print(f"   [DEBUG] Resized to match training format: {image.size}")
+            
+            # Nếu ảnh vẫn quá cao (trang web cuộn dài), cắt lấy phần header
+            if image.size[1] > 640:
+                image = image.crop((0, 0, 640, 640))
+                print(f"   [DEBUG] Cropped height to: {image.size}")
+            
+            # Đưa vào YOLO
+            results = models["yolo"](image, conf=0.45, imgsz=640, verbose=False)
+            
+            print(f"   [DEBUG] YOLO detections count: {len(results[0].boxes)}")
             response["details"]["modules_run"].append("IMAGE")
             
             detected_logos = []
@@ -295,15 +362,60 @@ async def predict(request: ScanRequest):
                     conf = float(box.conf[0])
                     class_name = models["yolo"].names[cls_id]
                     
-                    if conf > 0.5: 
+                    print(f"   [DEBUG] YOLO Raw Detection: {class_name} ({conf:.2f})")
+                    # Chỉ lấy các logo có độ tin cậy cao (>= 0.45) để tránh False Positives
+                    if conf >= 0.45: 
                         detected_logos.append(class_name)
             
             detected_logos = list(set(detected_logos))
             response["details"]["logo_detected"] = detected_logos
             
+            # --- LOGO CROSS-REFERENCING ---
+            # Check each detected brand against the actual URL domain and page content
             if len(detected_logos) > 0:
-                print(f"   [WARN] [YOLO] Logo detected: {detected_logos} -> +1 Point")
-                total_score += 1
+                parsed_uri = urlparse(request.url)
+                current_domain = parsed_uri.netloc.lower()
+                html_content = request.html_content or ""
+                
+                mismatched_brands = []
+                for brand in detected_logos:
+                    domain_match_status = check_brand_domain_match(brand, current_domain)
+                    content_match = check_brand_content_match(brand, html_content)
+                    
+                    if domain_match_status == "MATCH":
+                        # Logo matches URL → legitimate, no penalty
+                        print(f"   [INFO] [YOLO] {brand} logo detected — URL matches ({current_domain})")
+                    elif domain_match_status == "MISMATCH":
+                        if content_match:
+                            # Brand in content but not in URL — suspicious
+                            print(f"   [WARN] [YOLO] {brand} logo + content match but URL doesn't match → suspicious")
+                            mismatched_brands.append(brand)
+                        else:
+                            # Logo found but no content mention and URL mismatch
+                            print(f"   [WARN] [YOLO] {brand} logo detected but URL ({current_domain}) doesn't match → suspicious")
+                            mismatched_brands.append(brand)
+                    elif domain_match_status == "UNKNOWN":
+                        print(f"   [INFO] [YOLO] {brand} logo detected (brand domain unknown, skipping URL cross-reference)")
+                        # If unknown, we don't necessarily penalize by default, unless logic requires it
+                
+                if mismatched_brands:
+                    response["details"]["logo_mismatch"] = True
+                    total_score += 1
+                    brand_list = ", ".join([b.capitalize() for b in mismatched_brands])
+                    reasons.append({"message": f"{brand_list} logo detected but URL is not an official {brand_list} domain", "type": "danger"})
+                else:
+                    matched_brands = [b for b in detected_logos if check_brand_domain_match(b, current_domain) == "MATCH"]
+                    if matched_brands:
+                        brand_list = ", ".join([b.capitalize() for b in matched_brands])
+                        reasons.append({"message": f"{brand_list} logo detected and matches the website domain", "type": "safe"})
+                        print(f"   [INFO] [YOLO] All detected logos match the domain — no penalty")
+                    else:
+                        brand_list = ", ".join([b.capitalize() for b in detected_logos])
+                        reasons.append({"message": f"{brand_list} logo detected (brand domain unknown)", "type": "safe"})
+                        print(f"   [INFO] [YOLO] Detected logos have unknown domains — no penalty")
+            else:
+                print(f"   [INFO] [YOLO] No brand logo detected in screenshot")
+                reasons.append({"message": "No brand logo detected in screenshot", "type": "safe"})
                     
         except Exception as e:
             print(f"   [ERROR] [YOLO] Error: {e}")
@@ -315,7 +427,7 @@ async def predict(request: ScanRequest):
 
     # LOGIC:
     # 1. If Total Score >= 2 -> PHISHING (Consensus from multiple models)
-    # 2. CRITICAL OVERRIDE: If URL Score > 0.65 -> PHISHING (Moderate-high risk)
+    # 2. CRITICAL OVERRIDE: If URL Score > 0.90 -> PHISHING
     # 3. Suspicious patterns: TLD, random subdomain, hyphenated domains
     
     # Check for suspicious TLDs commonly used in phishing
@@ -326,11 +438,9 @@ async def predict(request: ScanRequest):
     has_suspicious_tld = any(domain.endswith(tld) for tld in suspicious_tlds)
     
     # Check for random-looking subdomain (long alphanumeric strings)
-    import re
     has_random_subdomain = bool(re.search(r'[a-z0-9]{10,}\.', domain))
     
     # Check for hyphenated domain names (common in phishing: "paypal-secure.com")
-    # Exclude www- prefix
     domain_without_www = domain.replace('www.', '')
     domain_parts = domain_without_www.split('.')
     main_domain = domain_parts[0] if len(domain_parts) > 0 else ''
@@ -342,14 +452,27 @@ async def predict(request: ScanRequest):
                       'netflix', 'support', 'service', 'billing', 'invoice']
     has_brand_keyword = any(kw in domain.lower() for kw in brand_keywords)
     
+    # Add pattern-based reasons
+    if has_suspicious_tld:
+        tld_match = [tld for tld in suspicious_tlds if domain.endswith(tld)]
+        reasons.append({"message": f"Uses suspicious domain extension ({tld_match[0] if tld_match else 'unknown'})", "type": "danger"})
+    if has_random_subdomain:
+        reasons.append({"message": "URL contains random-looking subdomain pattern", "type": "danger"})
+    if has_suspicious_hyphen:
+        reasons.append({"message": f"Domain uses suspicious hyphenation ({main_domain})", "type": "danger"})
+    if has_brand_keyword:
+        matched_kw = [kw for kw in brand_keywords if kw in domain.lower()]
+        reasons.append({"message": f"Domain contains brand/action keywords: {', '.join(matched_kw)}", "type": "danger"})
+    
     if total_score >= 2:
         response["final_verdict"] = "PHISHING"
         response["confidence"] = 0.95
         
-    elif url_prob > 0.90:  # Very high threshold - only flag extremely suspicious URLs
+    elif url_prob > 0.90:
         print(f"   [CRITICAL] Very High URL Risk Score ({url_prob:.4f}). Override to PHISHING.")
         response["final_verdict"] = "PHISHING"
         response["confidence"] = 0.90
+        reasons.append({"message": f"Extremely high URL risk score ({url_prob:.0%})", "type": "danger"})
         
     elif has_suspicious_tld and url_prob > 0.6:
         print(f"   [CRITICAL] Suspicious TLD detected with moderate risk. Override to PHISHING.")
@@ -368,8 +491,12 @@ async def predict(request: ScanRequest):
         
     else:
         response["final_verdict"] = "SAFE"
-        # If score is 1 (ambiguous), lower confidence. If 0, high confidence.
-        response["confidence"] = 0.45 if total_score == 1 else 0.9 
+        response["confidence"] = 0.45 if total_score == 1 else 0.9
+        if total_score == 0:
+            reasons.append({"message": "No threats detected across all analysis modules", "type": "safe"})
     
-    print(f"[RESULT] Verdict: {response['final_verdict']}")
+    # Attach reasons to response
+    response["details"]["reasons"] = reasons
+    
+    print(f"[RESULT] Verdict: {response['final_verdict']} | Reasons: {reasons}")
     return response
