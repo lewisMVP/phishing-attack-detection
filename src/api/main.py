@@ -83,7 +83,7 @@ WHITELIST_ROOT_DOMAINS = {
     "lazada.vn",
     "sendo.vn",
     "momo.vn",
-    #"vietcombank.com.vn",
+    "vietcombank.com.vn",
     "techcombank.com.vn",
     "vietinbank.vn",
     "bidv.com.vn",

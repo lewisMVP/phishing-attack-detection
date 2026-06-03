@@ -6,9 +6,6 @@ data/raw_from_datasetv1/
 data/processed/
 data/DatasetV1/
 
-# ignore model weights
-src/models/saved_models/
-
 
 # Virtual environment
 venv/
