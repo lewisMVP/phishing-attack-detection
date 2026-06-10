@@ -1,17 +1,25 @@
 # Ignore raw data
 data/raw/
 data/raw_from_datasetv1/
+data/dataset/
+data/datasets/
+*.xlsx
+*.csv
 
 #ignore dataset
 data/processed/
 data/DatasetV1/
 
-
 # Virtual environment
 venv/
 
-# Models
-src/models/saved_models
+# Models & Weights
+src/models/saved_models/
+*.safetensors
+*.onnx
+*.pt
+*.pkl
+*.bin
 
 # WebDriver
 *.exe
