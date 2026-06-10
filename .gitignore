@@ -10,6 +10,9 @@ data/DatasetV1/
 # Virtual environment
 venv/
 
+# Models
+src/models/saved_models
+
 # WebDriver
 *.exe
 

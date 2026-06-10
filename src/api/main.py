@@ -5,16 +5,17 @@ import os
 import sys
 import base64
 import io
-import torch
+import json
 import numpy as np
 import pandas as pd
 from PIL import Image
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer
 from ultralytics import YOLO
 from urllib.parse import urlparse
 import re
 import ipaddress
 from fastapi.middleware.cors import CORSMiddleware
+from scipy.special import softmax as scipy_softmax
 
 # --- Import advanced feature extraction module ---
 CURRENT_FILE_DIR_INIT = os.path.dirname(os.path.abspath(__file__))
@@ -185,7 +186,9 @@ models = {
     "xgb_feature_names": None,
     "yolo": None,
     "bert": None,
-    "bert_tokenizer": None
+    "bert_tokenizer": None,
+    "bert_threshold": 0.5,  # default, will be overridden by summary.json optimized_threshold
+    "bert_backend": None,  # 'onnx' or 'pytorch'
 }
 
 # --- HELPER: EXTRACT URL FEATURES (69 FEATURES via XGBoost module) ---
@@ -230,17 +233,78 @@ async def load_models():
     else:
         print(f"[ERROR] [CV Model] NOT FOUND at: {yolo_path}")
 
-    # 3. Load XLM-RoBERTa (Text)
-    xlmr_path = os.path.join(MODEL_DIR, 'xlmr_phishing')
-    if os.path.exists(xlmr_path):
+    # 3. Load XLM-RoBERTa (Text) + optimized threshold
+    #    Priority: ONNX quantized > ONNX float32 > PyTorch
+    onnx_path = os.path.join(MODEL_DIR, 'xlmr_phishing_onnx')
+    pytorch_path = os.path.join(MODEL_DIR, 'xlmr_phishing')
+    
+    nlp_loaded = False
+    
+    # Try ONNX first (much faster, smaller memory)
+    if os.path.exists(onnx_path):
         try:
-            models["bert_tokenizer"] = AutoTokenizer.from_pretrained(xlmr_path)
-            models["bert"] = AutoModelForSequenceClassification.from_pretrained(xlmr_path)
-            print(f"[OK] [NLP Model] XLM-RoBERTa Loaded: {xlmr_path}")
+            import onnxruntime as ort
+            
+            # Prefer quantized model, fallback to float32 ONNX
+            quantized_model = os.path.join(onnx_path, 'model_quantized.onnx')
+            float_model = os.path.join(onnx_path, 'model.onnx')
+            
+            if os.path.exists(quantized_model):
+                onnx_file = quantized_model
+                model_type = "ONNX INT8 Quantized"
+            elif os.path.exists(float_model):
+                onnx_file = float_model
+                model_type = "ONNX Float32"
+            else:
+                raise FileNotFoundError("No .onnx model file found")
+            
+            # Create ONNX Runtime session
+            sess_options = ort.SessionOptions()
+            sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            sess_options.intra_op_num_threads = 4
+            
+            models["bert"] = ort.InferenceSession(onnx_file, sess_options)
+            models["bert_tokenizer"] = AutoTokenizer.from_pretrained(onnx_path)
+            models["bert_backend"] = "onnx"
+            
+            size_mb = os.path.getsize(onnx_file) / (1024**2)
+            print(f"[OK] [NLP Model] {model_type} Loaded: {onnx_file} ({size_mb:.0f} MB)")
+            nlp_loaded = True
         except Exception as e:
-            print(f"[ERROR] [NLP Model] Error loading: {e}")
-    else:
-        print(f"[ERROR] [NLP Model] NOT FOUND at: {xlmr_path}")
+            print(f"[WARN] [NLP Model] ONNX load failed: {e}. Trying PyTorch fallback...")
+    
+    # Fallback to PyTorch
+    if not nlp_loaded and os.path.exists(pytorch_path):
+        try:
+            import torch
+            from transformers import AutoModelForSequenceClassification
+            
+            models["bert_tokenizer"] = AutoTokenizer.from_pretrained(pytorch_path)
+            models["bert"] = AutoModelForSequenceClassification.from_pretrained(pytorch_path)
+            models["bert_backend"] = "pytorch"
+            
+            size_mb = os.path.getsize(os.path.join(pytorch_path, 'model.safetensors')) / (1024**2)
+            print(f"[OK] [NLP Model] PyTorch XLM-RoBERTa Loaded: {pytorch_path} ({size_mb:.0f} MB)")
+            nlp_loaded = True
+        except Exception as e:
+            print(f"[ERROR] [NLP Model] PyTorch load failed: {e}")
+    
+    if not nlp_loaded:
+        print(f"[ERROR] [NLP Model] NOT FOUND at: {onnx_path} or {pytorch_path}")
+    
+    # Load optimized threshold from summary.json (check both dirs)
+    if nlp_loaded:
+        for model_dir in [onnx_path, pytorch_path]:
+            summary_path = os.path.join(model_dir, 'summary.json')
+            if os.path.exists(summary_path):
+                with open(summary_path, 'r', encoding='utf-8') as f:
+                    summary = json.load(f)
+                models["bert_threshold"] = summary.get('optimized_threshold', 0.5)
+                print(f"     Optimized Threshold: {models['bert_threshold']:.4f}")
+                print(f"     Test Metrics: {summary.get('test_metrics', 'N/A')}")
+                break
+        else:
+            print(f"     [WARN] summary.json not found - using default threshold {models['bert_threshold']}")
 
 # --- REQUEST BODY ---
 class ScanRequest(BaseModel):
@@ -342,27 +406,49 @@ async def predict(request: ScanRequest):
         except Exception as e:
             print(f"   [ERROR] [URL-XGB] Error: {e}")
 
-    # === 2. TEXT ANALYSIS (Weight: 1) ===
+    # === 2. TEXT ANALYSIS (Weight: 1) - XLM-RoBERTa with Optimized Threshold ===
     if models["bert"] and len(request.html_content) > 50:
         try:
-            inputs = models["bert_tokenizer"](
-                request.html_content, return_tensors="pt", truncation=True, max_length=512
-            )
-            with torch.no_grad():
-                outputs = models["bert"](**inputs)
+            # --- Inference: branch on backend ---
+            if models["bert_backend"] == "onnx":
+                # ONNX Runtime inference (no PyTorch needed)
+                encoded = models["bert_tokenizer"](
+                    request.html_content, truncation=True, max_length=256,
+                    padding=True, return_tensors="np"
+                )
+                ort_inputs = {
+                    "input_ids": encoded["input_ids"].astype(np.int64),
+                    "attention_mask": encoded["attention_mask"].astype(np.int64),
+                }
+                logits = models["bert"].run(None, ort_inputs)[0]
+                probs = scipy_softmax(logits, axis=-1)
+                phishing_prob = float(probs[0][1])
+            else:
+                # PyTorch inference (fallback)
+                import torch
+                inputs = models["bert_tokenizer"](
+                    request.html_content, return_tensors="pt", truncation=True, max_length=256
+                )
+                with torch.no_grad():
+                    outputs = models["bert"](**inputs)
+                probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+                phishing_prob = probs[0][1].item()
             
-            probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
-            phishing_prob = probs[0][1].item()
+            threshold = models["bert_threshold"]
+            is_phishing = phishing_prob >= threshold
             
             response["details"]["text_score"] = float(phishing_prob)
+            response["details"]["text_threshold"] = float(threshold)
+            response["details"]["text_backend"] = models["bert_backend"]
             response["details"]["modules_run"].append("TEXT")
             
-            # High threshold (0.85) to avoid false positives on news/blogs
-            if phishing_prob > 0.85: 
-                print(f"   [WARN] [XLM-R] Phishing Content Detected (Score: {phishing_prob:.4f}) -> +1 Point")
+            # Use trained optimal threshold (from summary.json) instead of hardcoded 0.85
+            if is_phishing:
+                print(f"   [WARN] [XLM-R/{models['bert_backend']}] Phishing Content Detected (Score: {phishing_prob:.4f} >= threshold {threshold:.4f}) -> +1 Point")
                 total_score += 1
                 reasons.append({"message": f"Page content contains phishing patterns (Score: {phishing_prob:.0%})", "type": "danger"})
             else:
+                print(f"   [INFO] [XLM-R/{models['bert_backend']}] Safe (Score: {phishing_prob:.4f} < threshold {threshold:.4f})")
                 reasons.append({"message": f"Page content appears legitimate (Score: {phishing_prob:.0%})", "type": "safe"})
         except Exception as e:
             print(f"   [ERROR] [XLM-R] Error: {e}")

@@ -4,6 +4,7 @@ beautifulsoup4
 tldextract
 scikit-learn
 numpy
+scipy
 fastapi
 uvicorn[standard]
 pydantic
@@ -11,6 +12,7 @@ python-multipart
 torch --index-url https://download.pytorch.org/whl/cpu
 torchvision --index-url https://download.pytorch.org/whl/cpu
 transformers
+onnxruntime
 ultralytics
 joblib
 Pillow
