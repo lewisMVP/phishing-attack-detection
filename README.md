@@ -1,5 +1,7 @@
 # Phishing Attack Detection System
 
+<img width="367" height="556" alt="image" src="https://github.com/user-attachments/assets/501e8bb6-891f-40ee-b40e-cc1e7ef96f76" />
+
 ## 1. Project Overview
 
 A highly sophisticated, multi-modal machine learning system designed to detect phishing websites in real-time. By leveraging a combination of structural heuristics, Natural Language Processing (NLP), and Computer Vision (CV), the system accurately classifies malicious domains that attempt to impersonate legitimate services. Unlike traditional blacklist-based approaches, this system dynamically evaluates the intent and composition of a webpage.
