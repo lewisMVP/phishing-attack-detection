@@ -7,7 +7,6 @@
 [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![PyTorch](https://img.shields.io/badge/PyTorch-EE4C2C?style=for-the-badge&logo=pytorch&logoColor=white)](https://pytorch.org)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
 A production-ready, multi-modal phishing detection system that combines **URL analysis**, **NLP content understanding**, and **computer vision** into a unified real-time pipeline — deployed as a browser extension + FastAPI backend.
 
@@ -37,11 +36,11 @@ Traditional blacklist-based phishing detection (e.g., Google Safe Browsing, Phis
 
 ### Why Multi-Modal?
 
-| Attack Vector                    | Single-Model Weakness                 | Our Solution                                     |
-| -------------------------------- | ------------------------------------- | ------------------------------------------------ |
-| Typosquatted URL on a clean page | Text model sees nothing suspicious    | ✅ URL model catches structural anomalies        |
-| Perfect URL but fake login form  | URL model sees nothing suspicious     | ✅ Text model detects phishing language patterns |
-| Cloned brand identity            | Both URL and text may look legitimate | ✅ Vision model detects logo + domain mismatch   |
+| Attack Vector                    | Single-Model Weakness                 | Our Solution                                  |
+| -------------------------------- | ------------------------------------- | --------------------------------------------- |
+| Typosquatted URL on a clean page | Text model sees nothing suspicious    | URL model catches structural anomalies        |
+| Perfect URL but fake login form  | URL model sees nothing suspicious     | Text model detects phishing language patterns |
+| Cloned brand identity            | Both URL and text may look legitimate | Vision model detects logo + domain mismatch   |
 
 ---
 
