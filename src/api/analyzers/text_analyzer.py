@@ -223,7 +223,7 @@ class TextAnalyzer(BaseAnalyzer):
         sess_options.intra_op_num_threads = 4
 
         session = ort.InferenceSession(onnx_file, sess_options)
-        self._tokenizer = AutoTokenizer.from_pretrained(onnx_path)
+        self._tokenizer = AutoTokenizer.from_pretrained(onnx_path, fix_mistral_regex=True)
         self._backend = OnnxBackend(session)  # Polymorphism: assign concrete backend
 
         size_mb = os.path.getsize(onnx_file) / (1024 ** 2)
@@ -234,7 +234,7 @@ class TextAnalyzer(BaseAnalyzer):
         """Load PyTorch model and create PyTorchBackend."""
         from transformers import AutoModelForSequenceClassification
 
-        self._tokenizer = AutoTokenizer.from_pretrained(pytorch_path)
+        self._tokenizer = AutoTokenizer.from_pretrained(pytorch_path, fix_mistral_regex=True)
         model = AutoModelForSequenceClassification.from_pretrained(pytorch_path)
         self._backend = PyTorchBackend(model)  # Polymorphism: assign concrete backend
 
