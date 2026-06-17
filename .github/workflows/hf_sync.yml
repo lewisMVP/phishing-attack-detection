@@ -28,6 +28,21 @@ jobs:
           # Initialize LFS
           git lfs install
           
+          # Prepend Hugging Face YAML metadata to README.md on the fly
+          cat << 'EOF' > temp_readme
+          ---
+          title: Real-Time Phishing Detection System
+          emoji: 🛡️
+          colorFrom: red
+          colorTo: blue
+          sdk: docker
+          app_port: 7860
+          ---
+          
+          EOF
+          cat README.md >> temp_readme
+          mv temp_readme README.md
+          
           # Stage and commit only current files (ignores what is in .gitignore)
           git add .
           git commit -m "deploy: clean sync with lightweight models"
@@ -36,5 +51,5 @@ jobs:
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          git remote add hf https://user:$HF_TOKEN@huggingface.co/spaces/lewischu/phishing-attack-detection
+          git remote add hf https://user:$HF_TOKEN@huggingface.co/spaces/lewischu/phishing-detection-api
           git push --force hf main:refs/heads/main
