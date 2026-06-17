@@ -12,18 +12,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           lfs: true
 
-      - name: Install Git LFS
-        run: git lfs install
-
-      - name: Pull LFS files
-        run: git lfs pull
+      - name: Reset Git History for Clean Push
+        run: |
+          # Remove existing Git history to prevent uploading historical heavy models
+          rm -rf .git
+          
+          # Initialize fresh repository
+          git init -b main
+          git config user.name "GitHub Action"
+          git config user.email "action@github.com"
+          
+          # Initialize LFS
+          git lfs install
+          
+          # Stage and commit only current files (ignores what is in .gitignore)
+          git add .
+          git commit -m "deploy: clean sync with lightweight models"
 
       - name: Push to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           git remote add hf https://user:$HF_TOKEN@huggingface.co/spaces/lewischu/phishing-attack-detection
-          git push --force hf HEAD:refs/heads/main
+          git push --force hf main:refs/heads/main
