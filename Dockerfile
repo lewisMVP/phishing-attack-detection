@@ -7,7 +7,7 @@ WORKDIR /app
 
 # System dependencies for OpenCV (ultralytics) and Pillow
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev \
+    libgl1 libglx-mesa0 libglib2.0-0 libsm6 libxext6 libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PyTorch CPU separately (--index-url not supported per-line in requirements.txt)
