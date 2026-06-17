@@ -14,12 +14,10 @@ data/DatasetV1/
 venv/
 
 # Models & Weights
-src/models/saved_models/
-*.safetensors
-*.onnx
-*.pt
-*.pkl
-*.bin
+src/models/saved_models/*
+!src/models/saved_models/xlmr_phishing_onnx/
+!src/models/saved_models/yolo26n_logo_detector.pt
+!src/models/saved_models/url_xgboost.pkl
 
 # WebDriver
 *.exe

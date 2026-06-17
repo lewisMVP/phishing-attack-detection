@@ -1,0 +1,29 @@
+name: Sync to Hugging Face Spaces
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  sync-to-hub:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          lfs: true
+
+      - name: Install Git LFS
+        run: git lfs install
+
+      - name: Pull LFS files
+        run: git lfs pull
+
+      - name: Push to HF
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git remote add hf https://user:$HF_TOKEN@huggingface.co/spaces/lewischu/phishing-attack-detection
+          git push --force hf HEAD:refs/heads/main

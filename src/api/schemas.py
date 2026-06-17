@@ -29,14 +29,16 @@ class ScanRequest(BaseModel):
     @classmethod
     def validate_html(cls, v: str) -> str:
         if len(v) > 500_000:
-            raise ValueError("HTML content too large (max 500KB)")
+            # Truncate HTML instead of crashing the request
+            return v[:500_000]
         return v
 
     @field_validator("screenshot_base64")
     @classmethod
     def validate_screenshot(cls, v: str) -> str:
-        if len(v) > 10_000_000:
-            raise ValueError("Screenshot too large (max ~7.5MB decoded)")
+        if len(v) > 15_000_000:
+            # Drop oversized screenshots gracefully so other analyzers can still run
+            return ""
         return v
 
 

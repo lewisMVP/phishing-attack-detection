@@ -1,3 +1,12 @@
+---
+title: Real-Time Phishing Detection System
+emoji: 🛡️
+colorFrom: red
+colorTo: blue
+sdk: docker
+app_port: 7860
+---
+
 <div align="center">
 
 # Real-Time Phishing Detection System
