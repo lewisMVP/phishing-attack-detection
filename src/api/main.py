@@ -10,7 +10,7 @@ Architecture (4 Pillars of OOP):
                    TextAnalyzer uses BaseInferenceBackend (ONNX / PyTorch)
     Encapsulation: Each class hides its model state, thresholds, and logic
 
-Run: uvicorn src.api.main:app --host 127.0.0.1 --port 8000
+Run: uvicorn src.api.main:app --host 0.0.0.0 --port 7860
 """
 import os
 import logging
@@ -165,3 +165,9 @@ def health_check():
         "analyzers": {a.name: a.is_available for a in analyzers},
         "total_analyzers": len(analyzers),
     }
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.environ.get("PORT", 7860))
+    uvicorn.run("src.api.main:app", host="0.0.0.0", port=port)
