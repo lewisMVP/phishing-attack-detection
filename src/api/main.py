@@ -20,6 +20,8 @@ from urllib.parse import urlparse
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.responses import RedirectResponse
+
 from .schemas import ScanRequest, ScanResponse, AnalysisDetails, AnalysisReason
 from .config import WhitelistConfig, BrandDomainConfig
 from .analyzers.base import BaseAnalyzer
@@ -155,6 +157,12 @@ def predict(request: ScanRequest):
 
     # --- STEP 2: COMPUTE VERDICT ---
     return verdict_engine.compute_verdict(request.url, results)
+
+
+@app.get("/", include_in_schema=False)
+def index():
+    """Redirect root to Swagger API documentation."""
+    return RedirectResponse(url="/docs")
 
 
 @app.get("/health")

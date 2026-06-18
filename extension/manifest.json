@@ -9,6 +9,7 @@
   ],
   "host_permissions": [
     "https://phishing-attack-detection-api.onrender.com/*",
+    "https://lewischu-phishing-detection-api.hf.space/*",
     "http://127.0.0.1:7860/*" 
   ],
   "action": {

@@ -1,3 +1,7 @@
+// --- CONFIGURATION ---
+const API_URL = 'http://127.0.0.1:7860/predict'; // Local Dev
+// const API_URL = 'https://lewischu-phishing-detection-api.hf.space/predict'; // Hugging Face Spaces (Prod)
+
 document.addEventListener('DOMContentLoaded', function() {
     // 1. Get current tab URL
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
@@ -62,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 verdictElem.textContent = "Processing...";
                 verdictDesc.textContent = "AI is analyzing the website";
                 
-                const response = await fetch('http://127.0.0.1:7860/predict', {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
