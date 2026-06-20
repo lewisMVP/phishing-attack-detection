@@ -57,6 +57,8 @@ class WhitelistConfig:
         "lazada.vn",
         "sendo.vn",
         "momo.vn",
+        "vnpay.vn",
+        "zalopay.vn",
         "vietcombank.com.vn",
         "techcombank.com.vn",
         "vietinbank.vn",
