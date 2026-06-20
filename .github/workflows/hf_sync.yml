@@ -19,15 +19,15 @@ jobs:
         run: |
           # Remove existing Git history to prevent uploading historical heavy models
           rm -rf .git
-          
+
           # Initialize fresh repository
           git init -b main
           git config user.name "GitHub Action"
           git config user.email "action@github.com"
-          
+
           # Initialize LFS
           git lfs install
-          
+
           # Prepend Hugging Face YAML metadata to README.md on the fly
           cat << 'EOF' > temp_readme
           ---
@@ -38,11 +38,11 @@ jobs:
           sdk: docker
           app_port: 7860
           ---
-          
+
           EOF
           cat README.md >> temp_readme
           mv temp_readme README.md
-          
+
           # Stage and commit only current files (ignores what is in .gitignore)
           git add .
           git commit -m "deploy: clean sync with lightweight models"

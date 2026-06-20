@@ -212,14 +212,12 @@ class VerdictEngine:
     ) -> tuple[str, float]:
         """Apply voting + override rules to determine verdict and confidence.
 
-        Logic preserved exactly from original implementation:
-        1. total_score >= 2 → PHISHING (consensus)
-        2. url_prob > 0.90 → PHISHING (critical override)
-        3. Suspicious TLD + url_prob > 0.6 → PHISHING
-        4. Suspicious hyphen + url_prob > 0.6 → PHISHING
-        5. Random subdomain + url_prob > 0.5 → PHISHING
-        6. Otherwise → SAFE
+        Three-level verdict system (matches architecture diagram):
+        1. PHISHING:  total_score >= 2 (consensus) OR url_prob > 0.90 (critical)
+        2. WARNING:   total_score < 2 BUT heuristic risk detected
+        3. SAFE:      total_score < 2 AND no risks
         """
+        # --- PHISHING: Strong consensus or critical URL risk ---
         if total_score >= 2:
             return "PHISHING", 0.95
 
@@ -233,29 +231,32 @@ class VerdictEngine:
             })
             return "PHISHING", 0.90
 
+        # --- WARNING: Heuristic risks detected (total_score < 2) ---
         if has_suspicious_tld and url_prob > 0.6:
             logger.info(
-                "[CRITICAL] Suspicious TLD detected with moderate risk. Override to PHISHING."
+                "[WARNING] Suspicious TLD detected with moderate risk."
             )
-            return "PHISHING", 0.85
+            return "WARNING", 0.75
 
         if has_suspicious_hyphen and url_prob > 0.6:
             logger.info(
-                "[CRITICAL] Suspicious hyphenated domain detected. Override to PHISHING."
+                "[WARNING] Suspicious hyphenated domain detected."
             )
-            return "PHISHING", 0.80
+            return "WARNING", 0.70
 
         if has_random_subdomain and url_prob > 0.5:
             logger.info(
-                "[CRITICAL] Random subdomain pattern detected. Override to PHISHING."
+                "[WARNING] Random subdomain pattern detected."
             )
-            return "PHISHING", 0.85
+            return "WARNING", 0.75
 
-        # SAFE verdict
-        confidence = 0.45 if total_score == 1 else 0.9
-        if total_score == 0:
-            reasons.append({
-                "message": "No threats detected across all analysis modules",
-                "type": "safe",
-            })
-        return "SAFE", confidence
+        # Single model flagged → WARNING (not enough for PHISHING)
+        if total_score == 1:
+            return "WARNING", 0.60
+
+        # --- SAFE: No risks detected ---
+        reasons.append({
+            "message": "No threats detected across all analysis modules",
+            "type": "safe",
+        })
+        return "SAFE", 0.90

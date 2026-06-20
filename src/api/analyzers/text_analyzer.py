@@ -44,8 +44,9 @@ class BaseInferenceBackend(ABC):
 class OnnxBackend(BaseInferenceBackend):
     """ONNX Runtime inference — fast, small memory footprint (Inheritance)."""
 
-    def __init__(self, session):
+    def __init__(self, session, temperature: float = 1.0):
         self._session = session
+        self._temperature = temperature
 
     @property
     def backend_name(self) -> str:
@@ -64,6 +65,7 @@ class OnnxBackend(BaseInferenceBackend):
             "attention_mask": encoded["attention_mask"].astype(np.int64),
         }
         logits = self._session.run(None, ort_inputs)[0]
+        logits = logits / self._temperature  # Temperature scaling
         probs = scipy_softmax(logits, axis=-1)
         return float(probs[0][1])
 
@@ -71,8 +73,9 @@ class OnnxBackend(BaseInferenceBackend):
 class PyTorchBackend(BaseInferenceBackend):
     """PyTorch inference — fallback when ONNX is unavailable (Inheritance)."""
 
-    def __init__(self, model):
+    def __init__(self, model, temperature: float = 1.0):
         self._model = model
+        self._temperature = temperature
 
     @property
     def backend_name(self) -> str:
@@ -86,7 +89,8 @@ class PyTorchBackend(BaseInferenceBackend):
         )
         with torch.no_grad():
             outputs = self._model(**inputs)
-        probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+        logits = outputs.logits / self._temperature  # Temperature scaling
+        probs = torch.nn.functional.softmax(logits, dim=-1)
         return probs[0][1].item()
 
 
@@ -101,7 +105,8 @@ class TextAnalyzer(BaseAnalyzer):
     between ONNX and PyTorch inference backends.
     """
 
-    _MIN_HTML_LENGTH = 50  # Minimum HTML length to run analysis
+    _MIN_HTML_LENGTH = 50   # Minimum HTML length to run analysis
+    _TEMPERATURE = 2.0      # Temperature scaling to reduce overconfidence
 
     def __init__(self):
         self._backend: BaseInferenceBackend | None = None
@@ -224,7 +229,7 @@ class TextAnalyzer(BaseAnalyzer):
 
         session = ort.InferenceSession(onnx_file, sess_options)
         self._tokenizer = AutoTokenizer.from_pretrained(onnx_path, fix_mistral_regex=True)
-        self._backend = OnnxBackend(session)  # Polymorphism: assign concrete backend
+        self._backend = OnnxBackend(session, self._TEMPERATURE)  # Polymorphism: assign concrete backend
 
         size_mb = os.path.getsize(onnx_file) / (1024 ** 2)
         logger.info(f"[NLP Model] {model_type} Loaded: {onnx_file} ({size_mb:.0f} MB)")
@@ -236,7 +241,7 @@ class TextAnalyzer(BaseAnalyzer):
 
         self._tokenizer = AutoTokenizer.from_pretrained(pytorch_path, fix_mistral_regex=True)
         model = AutoModelForSequenceClassification.from_pretrained(pytorch_path)
-        self._backend = PyTorchBackend(model)  # Polymorphism: assign concrete backend
+        self._backend = PyTorchBackend(model, self._TEMPERATURE)  # Polymorphism: assign concrete backend
 
         safetensors_path = os.path.join(pytorch_path, "model.safetensors")
         if os.path.exists(safetensors_path):

@@ -207,6 +207,18 @@ body::-webkit-scrollbar {
   box-shadow: 4px 4px 0px 0px #191A23;
 }
 
+.warning {
+  background-color: #FF9F1C;
+  color: #191A23;
+  box-shadow: 6px 6px 0px 0px #191A23;
+}
+
+.warning .status-icon {
+  color: #FF9F1C;
+  background-color: #FFFFFF;
+  box-shadow: 4px 4px 0px 0px #191A23;
+}
+
 .scanning {
   background-color: #FFFFFF;
   color: #191A23;
@@ -399,6 +411,11 @@ body::-webkit-scrollbar {
   color: #FFFFFF;
 }
 
+.reasons-header.warning {
+  background-color: #FF9F1C;
+  color: #191A23;
+}
+
 .reasons-header.safe {
   background-color: #B9FF66;
   color: #191A23;
@@ -450,6 +467,19 @@ body::-webkit-scrollbar {
   font-size: 14px;
   font-weight: 900;
   color: #22c55e;
+}
+
+.reason-item.warning {
+  box-shadow: 3px 3px 0px 0px #FF9F1C;
+}
+
+.reason-item.warning::before {
+  content: "⚠";
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 14px;
 }
 
 /* ===== UTILITIES ===== */

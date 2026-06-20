@@ -1,5 +1,5 @@
 // --- CONFIGURATION ---
-// const API_URL = 'http://127.0.0.1:7860/predict'; // Local Dev
+// const API_URL = 'http://127.0.0.1:8000/predict'; // Local Dev
 const API_URL = 'https://lewischu-phishing-detection-api.hf.space/predict'; // Hugging Face Spaces (Prod)
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -92,6 +92,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     </svg>`;
                     verdictElem.textContent = "Threat Detected";
                     verdictDesc.textContent = "This website appears to be a phishing attempt";
+                } else if (data.final_verdict === 'WARNING') {
+                    statusCard.className = "status-card warning";
+                    statusIcon.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
+                    </svg>`;
+                    verdictElem.textContent = "Suspicious";
+                    verdictDesc.textContent = "This website has some suspicious characteristics";
                 } else {
                     statusCard.className = "status-card safe";
                     statusIcon.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
@@ -111,8 +118,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (reasons.length > 0) {
                     // Dynamic header based on verdict
                     if (data.final_verdict === 'PHISHING') {
-                        reasonsHeader.textContent = 'Why is this suspicious?';
+                        reasonsHeader.textContent = 'Why is this dangerous?';
                         reasonsHeader.className = 'reasons-header danger';
+                    } else if (data.final_verdict === 'WARNING') {
+                        reasonsHeader.textContent = 'Why is this suspicious?';
+                        reasonsHeader.className = 'reasons-header warning';
                     } else {
                         reasonsHeader.textContent = 'Analysis Summary';
                         reasonsHeader.className = 'reasons-header safe';
@@ -121,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     reasonsList.innerHTML = '';
                     reasons.forEach(reason => {
                         const li = document.createElement('li');
-                        li.className = reason.type === 'danger' ? 'reason-item danger' : 'reason-item safe';
+                        li.className = `reason-item ${reason.type}`;
                         li.textContent = reason.message;
                         reasonsList.appendChild(li);
                     });

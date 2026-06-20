@@ -67,6 +67,6 @@ class ScanResponse(BaseModel):
     """Response body for the /predict endpoint."""
 
     url: str
-    final_verdict: Literal["SAFE", "PHISHING", "ERROR"]
+    final_verdict: Literal["SAFE", "WARNING", "PHISHING", "ERROR"]
     confidence: float
     details: AnalysisDetails
