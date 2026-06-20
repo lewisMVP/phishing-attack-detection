@@ -167,55 +167,66 @@ class ImageAnalyzer(BaseAnalyzer):
         """
         reasons: list[dict[str, str]] = []
         mismatched_brands: list[str] = []
+        matched_brands: list[str] = []
+        unknown_brands: list[str] = []
 
+        # First pass: classify all detected logos
         for brand in detected_logos:
             domain_match_status = self._brand_config.check_domain_match(brand, domain)
-            content_match = self._brand_config.check_content_match(brand, html_content)
-
             if domain_match_status == "MATCH":
-                logger.info(
-                    f"[YOLO] {brand} logo detected — URL matches ({domain})"
-                )
+                matched_brands.append(brand)
             elif domain_match_status == "MISMATCH":
-                if content_match:
-                    logger.warning(
-                        f"[YOLO] {brand} logo + content match but URL doesn't match → suspicious"
-                    )
-                else:
-                    logger.warning(
-                        f"[YOLO] {brand} logo detected but URL ({domain}) doesn't match → suspicious"
-                    )
                 mismatched_brands.append(brand)
-            elif domain_match_status == "UNKNOWN":
-                logger.info(
-                    f"[YOLO] {brand} logo detected (brand domain unknown, skipping URL cross-reference)"
-                )
+            else:
+                unknown_brands.append(brand)
 
-        # Build human-readable reasons
+        # 1. If at least ONE logo matches the domain, the domain is legitimate.
+        # Ignore all mismatched logos (e.g. 3rd-party payment logos like Mastercard)
+        if matched_brands:
+            if mismatched_brands:
+                logger.info(
+                    f"[YOLO] Ignoring mismatched logos {mismatched_brands} because "
+                    f"primary legitimate brand(s) {matched_brands} matched the domain ({domain})."
+                )
+            
+            # Clear mismatched_brands so no penalty points are given
+            mismatched_brands = []
+            
+            brand_list = ", ".join([b.capitalize() for b in matched_brands])
+            reasons.append({
+                "message": f"{brand_list} logo detected and matches the website domain",
+                "type": "safe",
+            })
+            for b in matched_brands:
+                logger.info(f"[YOLO] {b} logo detected — URL matches ({domain})")
+                
+            return mismatched_brands, reasons
+
+        # 2. If NO logos matched the domain, but we found MISMATCHES -> Suspicious!
         if mismatched_brands:
+            for brand in mismatched_brands:
+                content_match = self._brand_config.check_content_match(brand, html_content)
+                if content_match:
+                    logger.warning(f"[YOLO] {brand} logo + content match but URL doesn't match → suspicious")
+                else:
+                    logger.warning(f"[YOLO] {brand} logo detected but URL ({domain}) doesn't match → suspicious")
+
             brand_list = ", ".join([b.capitalize() for b in mismatched_brands])
             reasons.append({
                 "message": f"{brand_list} logo detected but URL is not an official {brand_list} domain",
                 "type": "danger",
             })
-        else:
-            matched_brands = [
-                b for b in detected_logos
-                if self._brand_config.check_domain_match(b, domain) == "MATCH"
-            ]
-            if matched_brands:
-                brand_list = ", ".join([b.capitalize() for b in matched_brands])
-                reasons.append({
-                    "message": f"{brand_list} logo detected and matches the website domain",
-                    "type": "safe",
-                })
-                logger.info("[YOLO] All detected logos match the domain — no penalty")
-            else:
-                brand_list = ", ".join([b.capitalize() for b in detected_logos])
-                reasons.append({
-                    "message": f"{brand_list} logo detected (brand domain unknown)",
-                    "type": "safe",
-                })
-                logger.info("[YOLO] Detected logos have unknown domains — no penalty")
+            return mismatched_brands, reasons
+
+        # 3. No match, no mismatch, only UNKNOWN logos
+        if unknown_brands:
+            brand_list = ", ".join([b.capitalize() for b in unknown_brands])
+            reasons.append({
+                "message": f"{brand_list} logo detected (brand domain unknown)",
+                "type": "safe",
+            })
+            for b in unknown_brands:
+                logger.info(f"[YOLO] {b} logo detected (brand domain unknown, skipping URL cross-reference)")
+            logger.info("[YOLO] Detected logos have unknown domains — no penalty")
 
         return mismatched_brands, reasons

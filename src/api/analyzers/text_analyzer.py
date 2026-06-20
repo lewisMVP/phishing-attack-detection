@@ -4,11 +4,14 @@ Demonstrates Polymorphism through BaseInferenceBackend with
 ONNX and PyTorch implementations, and Inheritance from BaseAnalyzer.
 """
 import os
+import re
 import json
+import math
 import logging
 from abc import ABC, abstractmethod
 
 import numpy as np
+from bs4 import BeautifulSoup
 from transformers import AutoTokenizer
 from scipy.special import softmax as scipy_softmax
 
@@ -166,12 +169,19 @@ class TextAnalyzer(BaseAnalyzer):
 
         Returns None if html_content is too short to analyze.
         Uses self._backend.predict() — polymorphic (ONNX or PyTorch).
+
+        IMPORTANT: The raw HTML is first preprocessed into the same
+        structured format used during training (Information-Dense Parsing)
+        to avoid training-serving skew.
         """
         if len(request.html_content) <= self._MIN_HTML_LENGTH:
             return None
 
+        # Preprocess raw HTML → structured text (same format as training)
+        model_input = self._preprocess_html(request.html_content)
+
         # Polymorphism: backend.predict() — doesn't matter if ONNX or PyTorch
-        phishing_prob = self._backend.predict(request.html_content, self._tokenizer)
+        phishing_prob = self._backend.predict(model_input, self._tokenizer)
         is_phishing = phishing_prob >= self._threshold
 
         result = AnalysisResult(
@@ -206,6 +216,79 @@ class TextAnalyzer(BaseAnalyzer):
         return result
 
     # --- Private helpers (Encapsulation) ---
+
+    @staticmethod
+    def _clean_whitespace(s: str) -> str:
+        """Collapse whitespace into single spaces."""
+        return re.sub(r'\s+', ' ', s).strip()
+
+    def _preprocess_html(self, html: str) -> str:
+        """Parse raw HTML into the structured format used during training.
+
+        Replicates the exact Information-Dense Parsing pipeline from
+        training_phase_xlmr.ipynb (extract_signals_from_html + text_combined).
+
+        Extracts: <title>, <meta>, <form>, <input>, <a>, visible text.
+        This ensures the model receives the same input format it learned from.
+        """
+        try:
+            soup = BeautifulSoup(html, 'html.parser')
+
+            # Remove noise tags (same as training)
+            for tag in soup(['script', 'style', 'noscript']):
+                tag.extract()
+
+            # Title
+            title = soup.title.string if soup.title and soup.title.string else ''
+
+            # Meta tags
+            metas = []
+            for m in soup.find_all('meta'):
+                name = m.get('name') or m.get('property') or ''
+                content = m.get('content') or ''
+                if content:
+                    metas.append(f'{name}={content}')
+
+            # Anchor text
+            anchors = [a.get_text(' ', strip=True) for a in soup.find_all('a')]
+
+            # Input fields
+            inputs = []
+            for inp in soup.find_all('input'):
+                inputs.append('|'.join([
+                    f"type={inp.get('type', '')}",
+                    f"name={inp.get('name', '')}",
+                    f"placeholder={inp.get('placeholder', '')}",
+                    f"id={inp.get('id', '')}",
+                ]))
+
+            # Forms
+            forms = []
+            for f in soup.find_all('form'):
+                forms.append(
+                    f"form_action={f.get('action', '')} method={f.get('method', '')}"
+                )
+
+            # Visible text
+            visible = soup.get_text(' ', strip=True)
+
+            # Combine into structured format (exact same as training)
+            cw = self._clean_whitespace
+            text_combined = cw(' \n '.join([
+                f'<title> {cw(title)}',
+                f'<meta> {cw(" | ".join(metas))}',
+                f'<forms> {cw(" ".join(forms))}',
+                f'<inputs> {cw(" ".join(inputs))}',
+                f'<anchors> {cw(" ".join(anchors))[:5000]}',
+                f'<text> {cw(visible)[:20000]}',
+            ]))
+
+            return text_combined
+
+        except Exception as e:
+            logger.warning(f"[XLM-R] HTML preprocessing failed: {e}. Using raw HTML.")
+            return html
+
 
     def _load_onnx(self, onnx_path: str) -> bool:
         """Load ONNX Runtime session and create OnnxBackend."""
@@ -254,16 +337,47 @@ class TextAnalyzer(BaseAnalyzer):
         return True
 
     def _load_threshold(self, onnx_path: str, pytorch_path: str) -> None:
-        """Load optimized threshold from summary.json (check both model dirs)."""
+        """Load optimized threshold from summary.json (check both model dirs).
+
+        If temperature scaling is active (T != 1.0), the threshold is
+        automatically recalibrated to maintain the same classification
+        boundary in the new probability space.
+        """
         for model_path in [onnx_path, pytorch_path]:
             summary_path = os.path.join(model_path, "summary.json")
             if os.path.exists(summary_path):
                 with open(summary_path, "r", encoding="utf-8") as f:
                     summary = json.load(f)
-                self._threshold = summary.get("optimized_threshold", 0.5)
-                logger.info(f"  Optimized Threshold: {self._threshold:.4f}")
+                raw_threshold = summary.get("optimized_threshold", 0.5)
+                self._threshold = self._adjust_threshold_for_temperature(raw_threshold)
+                logger.info(
+                    f"  Original Threshold: {raw_threshold:.6f} "
+                    f"(T={self._TEMPERATURE}) → Adjusted: {self._threshold:.6f}"
+                )
                 logger.info(f"  Test Metrics: {summary.get('test_metrics', 'N/A')}")
                 return
         logger.warning(
             f"summary.json not found — using default threshold {self._threshold}"
         )
+
+    def _adjust_threshold_for_temperature(self, threshold: float) -> float:
+        """Recalibrate probability threshold for temperature-scaled logits.
+
+        The threshold in summary.json was optimized on raw logits (T=1.0).
+        When temperature scaling is applied, the softmax distribution changes,
+        so we must transform the threshold through logit space:
+
+            logit = ln(p / (1 - p))           # probability → logit
+            logit_scaled = logit / T           # scale by temperature
+            p_new = σ(logit_scaled)            # back to probability
+
+        This preserves the exact same decision boundary in logit space.
+        """
+        if self._TEMPERATURE == 1.0:
+            return threshold
+        # Clamp to avoid log(0) or log(inf)
+        threshold = max(1e-7, min(1 - 1e-7, threshold))
+        logit = math.log(threshold / (1.0 - threshold))
+        scaled_logit = logit / self._TEMPERATURE
+        return 1.0 / (1.0 + math.exp(-scaled_logit))
+

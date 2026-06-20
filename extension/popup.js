@@ -1,5 +1,5 @@
 // --- CONFIGURATION ---
-// const API_URL = 'http://127.0.0.1:8000/predict'; // Local Dev
+//const API_URL = 'http://127.0.0.1:8000/predict'; // Local Dev
 const API_URL = 'https://lewischu-phishing-detection-api.hf.space/predict'; // Hugging Face Spaces (Prod)
 
 document.addEventListener('DOMContentLoaded', function() {
