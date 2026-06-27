@@ -20,6 +20,9 @@ jobs:
           # Remove existing Git history to prevent uploading historical heavy models
           rm -rf .git
 
+          # Remove non-essential folders for API hosting to avoid binary errors and heavy push sizes
+          rm -rf extension notebook data
+
           # Initialize fresh repository
           git init -b main
           git config user.name "GitHub Action"
