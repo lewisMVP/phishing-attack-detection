@@ -1,17 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "Phishing Detector",
-  "version": "1.0",
-  "description": "Phishing detection using Random Forest, YOLOv8, and BERT models.",
+  "name": "Phishing Guard",
+  "version": "2.1",
+  "description": "Phishing detection using XGBoost, YOLO26, and XLM-R models.",
   "permissions": [
     "activeTab", 
-    "scripting"
+    "scripting",
+    "tabs"
   ],
   "host_permissions": [
     "https://phishing-attack-detection-api.onrender.com/*",
     "https://lewischu-phishing-detection-api.hf.space/*",
     "http://127.0.0.1:7860/*" 
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {

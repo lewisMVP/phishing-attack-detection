@@ -84,7 +84,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 // 4. Update UI
                 resultDiv.classList.remove('hidden');
                 
+                // Determine badge verdict for the icon
+                let badgeVerdict = 'SAFE';
+
                 if (data.final_verdict === 'PHISHING') {
+                    badgeVerdict = 'PHISHING';
                     statusCard.className = "status-card phishing";
                     statusIcon.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
@@ -93,6 +97,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     verdictElem.textContent = "Threat Detected";
                     verdictDesc.textContent = "This website appears to be a phishing attempt";
                 } else if (data.final_verdict === 'WARNING') {
+                    badgeVerdict = 'WARNING';
                     statusCard.className = "status-card warning";
                     statusIcon.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/>
@@ -100,6 +105,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     verdictElem.textContent = "Suspicious";
                     verdictDesc.textContent = "This website has some suspicious characteristics";
                 } else {
+                    badgeVerdict = 'SAFE';
                     statusCard.className = "status-card safe";
                     statusIcon.innerHTML = `<svg width="48" height="48" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 2L3 7v5c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-2 15l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
@@ -107,6 +113,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     verdictElem.textContent = "Website Safe";
                     verdictDesc.textContent = "No threats detected on this website";
                 }
+
+                // Send result to background service worker to update badge icon
+                chrome.runtime.sendMessage({
+                    type: 'SCAN_RESULT',
+                    tabId: tabId,
+                    url: url,
+                    verdict: badgeVerdict
+                });
 
                 document.getElementById('confidence').textContent = confidencePercent + "%";
                 document.getElementById('confidence-fill').style.width = confidencePercent + "%";
